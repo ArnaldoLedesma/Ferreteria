@@ -1,5 +1,6 @@
 import sqlite3
 import csv # libreria y herramienta para leer y escribir archivos de csv
+from datetime import date
 
 class ConexionDB:
     def __init__(self, nombre_bd="ferreteria.db"):
@@ -11,9 +12,10 @@ class ConexionDB:
     def insertar_producto(self, codigo, nombre, precio_lista, precio_c_iva, stock, proveedor):
         connexion = self.conectar()
         cursor = connexion.cursor()
+        hoy = date.today().strftime("%d/%m/%Y")
         cursor.execute(
-            "INSERT INTO Productos (codigo, nombre, precio_lista, precio_c_iva, precio_final, stock, proveedor) VALUES (?, ?, ?, ?, 0, ?, ?)",
-            (codigo, nombre, precio_lista, precio_c_iva, stock, proveedor)
+            "INSERT INTO Productos (codigo, nombre, precio_lista, precio_c_iva, precio_final, stock, proveedor, fecha_act) VALUES (?, ?, ?, ?, 0, ?, ?, ?)",
+            (codigo, nombre, precio_lista, precio_c_iva, stock, proveedor, hoy)
         )
         connexion.commit()
         connexion.close()
@@ -29,11 +31,12 @@ class ConexionDB:
     def actualizar_producto(self, id_producto, codigo, nombre, precio_lista, precio_c_iva, stock, proveedor):
         connexion = self.conectar()
         cursor = connexion.cursor()
+        hoy = date.today().strftime("%d/%m/%Y")
         cursor.execute("""
             UPDATE Productos
-            SET codigo = ?, nombre = ?, precio_lista = ?, precio_c_iva = ?, stock = ?, proveedor = ?
+            SET codigo = ?, nombre = ?, precio_lista = ?, precio_c_iva = ?, stock = ?, proveedor = ?, fecha_act = ?
             WHERE id = ?
-        """, (codigo, nombre, precio_lista, precio_c_iva, stock, proveedor, id_producto))
+        """, (codigo, nombre, precio_lista, precio_c_iva, stock, proveedor, hoy, id_producto))
         connexion.commit()
         connexion.close()
 
@@ -47,6 +50,7 @@ class ConexionDB:
     def actualizar_precios_pol(self, ruta_csv):
         connexion = self.conectar()
         cursor = connexion.cursor()
+        hoy = date.today().strftime("%d/%m/%Y")
 
         with open(ruta_csv, encoding="latin-1") as archivo:
             lector = csv.reader(archivo)
@@ -73,15 +77,16 @@ class ConexionDB:
                 existe = cursor.fetchone()
 
                 if existe:
-                    cursor.execute("UPDATE Productos SET nombre = ?, precio_lista = ?, precio_c_iva = ? WHERE id = ?", (nombre, precio_lista, precio_c_iva, existe[0]))
+                    cursor.execute("UPDATE Productos SET nombre = ?, precio_lista = ?, precio_c_iva = ?, fecha_act = ? WHERE id = ?", (nombre, precio_lista, precio_c_iva, hoy, existe[0]))
                 else:
-                    cursor.execute("INSERT INTO Productos (codigo, nombre, precio_lista, precio_c_iva, precio_final, stock, proveedor) VALUES (?, ?, ?, ?, 0, 0, ?)", (codigo, nombre, precio_lista, precio_c_iva, "POL"))
+                    cursor.execute("INSERT INTO Productos (codigo, nombre, precio_lista, precio_c_iva, precio_final, stock, proveedor, fecha_act) VALUES (?, ?, ?, ?, 0, 0, ?, ?)", (codigo, nombre, precio_lista, precio_c_iva, "POL", hoy))
 
         connexion.commit()
         connexion.close()
     def actualizar_precios_fgp(self, ruta_csv):
         connexion = self.conectar()
         cursor = connexion.cursor()
+        hoy = date.today().strftime("%d/%m/%Y")
 
         with open(ruta_csv, encoding="latin-1") as archivo:
             lector = csv.reader(archivo)
@@ -108,9 +113,9 @@ class ConexionDB:
                 existe = cursor.fetchone()
 
                 if existe:
-                    cursor.execute("UPDATE Productos SET nombre = ?, precio_lista = ?, precio_c_iva = ? WHERE id = ?", (nombre, precio_lista, precio_c_iva, existe[0]))
+                    cursor.execute("UPDATE Productos SET nombre = ?, precio_lista = ?, precio_c_iva = ?, fecha_act = ? WHERE id = ?", (nombre, precio_lista, precio_c_iva, hoy, existe[0]))
                 else:
-                    cursor.execute("INSERT INTO Productos (codigo, nombre, precio_lista, precio_c_iva, precio_final, stock, proveedor) VALUES (?, ?, ?, ?, 0, 0, ?)", (codigo, nombre, precio_lista, precio_c_iva, "FGP"))
+                    cursor.execute("INSERT INTO Productos (codigo, nombre, precio_lista, precio_c_iva, precio_final, stock, proveedor, fecha_act) VALUES (?, ?, ?, ?, 0, 0, ?, ?)", (codigo, nombre, precio_lista, precio_c_iva, "FGP", hoy))
 
         connexion.commit()
         connexion.close()
@@ -118,6 +123,7 @@ class ConexionDB:
     def actualizar_precios_day(self, ruta_csv):
         connexion = self.conectar()
         cursor = connexion.cursor()
+        hoy = date.today().strftime("%d/%m/%Y")
 
         with open(ruta_csv, encoding="latin-1") as archivo:
             lector = csv.reader(archivo)
@@ -142,9 +148,9 @@ class ConexionDB:
                 existe = cursor.fetchone()
 
                 if existe:
-                    cursor.execute("UPDATE Productos SET precio_lista = ?, precio_c_iva = ? WHERE id = ?", (precio, precio, existe[0]))
+                    cursor.execute("UPDATE Productos SET precio_lista = ?, precio_c_iva = ?, fecha_act = ? WHERE id = ?", (precio, precio, hoy, existe[0]))
                 else:
-                    cursor.execute("INSERT INTO Productos (codigo, nombre, precio_lista, precio_c_iva, precio_final, stock, proveedor) VALUES (?, ?, ?, ?, 0, 0, ?)", ("", nombre, precio, precio, "DAY"))
+                    cursor.execute("INSERT INTO Productos (codigo, nombre, precio_lista, precio_c_iva, precio_final, stock, proveedor, fecha_act) VALUES (?, ?, ?, ?, 0, 0, ?, ?)", ("", nombre, precio, precio, "DAY", hoy))
 
         connexion.commit()
         connexion.close()
@@ -152,6 +158,8 @@ class ConexionDB:
     def actualizar_precios_grays(self, ruta_csv):
         connexion = self.conectar()
         cursor = connexion.cursor()
+        hoy = date.today().strftime("%d/%m/%Y")
+
 
         with open(ruta_csv, encoding="latin-1") as archivo:
             lector = csv.reader(archivo)
@@ -177,9 +185,9 @@ class ConexionDB:
                 existe = cursor.fetchone()
 
                 if existe:
-                    cursor.execute("UPDATE Productos SET nombre = ?, precio_lista = ?, precio_c_iva = ? WHERE id = ?", (nombre, precio, precio, existe[0]))
+                    cursor.execute("UPDATE Productos SET nombre = ?, precio_lista = ?, precio_c_iva = ?, fecha_act = ? WHERE id = ?", (nombre, precio, precio, hoy, existe[0]))
                 else:
-                    cursor.execute("INSERT INTO Productos (codigo, nombre, precio_lista, precio_c_iva, precio_final, stock, proveedor) VALUES (?, ?, ?, ?, 0, 0, ?)", (codigo, nombre, precio, precio, "GRAYS"))
+                    cursor.execute("INSERT INTO Productos (codigo, nombre, precio_lista, precio_c_iva, precio_final, stock, proveedor, fecha_act) VALUES (?, ?, ?, ?, 0, 0, ?, ?)", (codigo, nombre, precio, precio, "GRAYS", hoy))
 
         connexion.commit()
         connexion.close()
