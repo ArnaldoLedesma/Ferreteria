@@ -1,6 +1,6 @@
 import sqlite3
 import csv # libreria y herramienta para leer y escribir archivos de csv
-from datetime import date
+from datetime import date, datetime
 
 class ConexionDB:
     def __init__(self, nombre_bd="ferreteria.db"):
@@ -202,3 +202,153 @@ class ConexionDB:
         """, (margen, proveedor))
         connexion.commit()
         connexion.close()
+
+    def buscar_productos_venta(self, texto=""):
+        connexion = self.conectar()
+        cursor = connexion.cursor()
+
+        busqueda = f"%{texto}%"
+
+        cursor.execute(
+            """
+            SELECT id, codigo, nombre, precio_final, stock
+            FROM Productos
+            WHERE (
+                CAST(codigo AS TEXT) LIKE ?
+                OR nombre LIKE ?
+            )
+            AND precio_final > 0
+            ORDER BY nombre
+            LIMIT 200
+            """,
+            (busqueda, busqueda)
+        )  # Limita los resultados para no cargar los 21.967 productos de golpe
+
+        productos = cursor.fetchall()
+        connexion.close()
+
+        return productos
+    
+    def crear_tablas_ventas(self):
+        connexion = self.conectar()
+        cursor = connexion.cursor()
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS Ventas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                fecha TEXT NOT NULL,
+                total REAL NOT NULL,
+                medio_pago TEXT NOT NULL
+            )
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS DetalleVenta (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                venta_id INTEGER NOT NULL,
+                producto_id INTEGER NOT NULL,
+                codigo TEXT,
+                nombre TEXT NOT NULL,
+                cantidad INTEGER NOT NULL,
+                precio_unitario REAL NOT NULL,
+                subtotal REAL NOT NULL,
+                FOREIGN KEY (venta_id) REFERENCES Ventas(id),
+                FOREIGN KEY (producto_id) REFERENCES Productos(id)
+            )
+        """)
+
+        connexion.commit()
+        connexion.close()
+
+    def registrar_venta(self, carrito, medio_pago):
+        conexion = self.conectar()
+        cursor = conexion.cursor()
+
+        try:
+            total_venta = sum(
+                producto["cantidad"] * producto["precio"]
+                for producto in carrito.values()
+            )
+
+            # Comprueba nuevamente el stock directamente en la base de datos
+            for id_producto, producto in carrito.items():
+                cursor.execute(
+                    "SELECT stock FROM Productos WHERE id = ?",
+                    (int(id_producto),)
+                )
+                resultado = cursor.fetchone()
+
+                if resultado is None:
+                    raise ValueError(
+                        f'El producto "{producto["nombre"]}" ya no existe.'
+                    )
+
+                if resultado[0] < producto["cantidad"]:
+                    raise ValueError(
+                        f'Stock insuficiente para "{producto["nombre"]}". '
+                        f'Disponible: {resultado[0]}'
+                    )
+
+            fecha_venta = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+
+            cursor.execute(
+                """
+                INSERT INTO Ventas (fecha, total, medio_pago)
+                VALUES (?, ?, ?)
+                """,
+                (fecha_venta, total_venta, medio_pago)
+            )
+
+            venta_id = cursor.lastrowid
+
+            for id_producto, producto in carrito.items():
+                subtotal = producto["cantidad"] * producto["precio"]
+
+                cursor.execute(
+                    """
+                    INSERT INTO DetalleVenta (
+                        venta_id, producto_id, codigo, nombre,
+                        cantidad, precio_unitario, subtotal
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        venta_id,
+                        int(id_producto),
+                        producto["codigo"],
+                        producto["nombre"],
+                        producto["cantidad"],
+                        producto["precio"],
+                        subtotal
+                    )
+                )
+
+                cursor.execute(
+                    """
+                    UPDATE Productos
+                    SET stock = stock - ?
+                    WHERE id = ? AND stock >= ?
+                    """,
+                    (
+                        producto["cantidad"],
+                        int(id_producto),
+                        producto["cantidad"]
+                    )
+                )
+
+                # rowcount permite comprobar que realmente se descontó el stock
+                if cursor.rowcount != 1:
+                    raise ValueError(
+                        f'No se pudo actualizar el stock de '
+                        f'"{producto["nombre"]}".'
+                    )
+
+            conexion.commit()  # Confirma todos los cambios juntos
+            return venta_id
+
+        except Exception:
+            conexion.rollback()  # Si algo falla, cancela toda la venta
+            raise
+
+        finally:
+            conexion.close()

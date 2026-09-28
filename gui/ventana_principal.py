@@ -2,6 +2,8 @@ import customtkinter as ctk
 
 import unicodedata  # Permite buscar sin importar los acentos
 
+from gui.ventas import VentanaVentas  # Importa la ventana del carrito de ventas
+
 from tkinter import ttk, filedialog
 from CTkMessagebox import CTkMessagebox  # libreria instalada por posibles errores al ejecutar (para mostrar los cuadros "ERROR" "ATENCION")
 from database.conexion_db import ConexionDB
@@ -16,6 +18,7 @@ class VentanaPrincipal(ctk.CTk):
 
         self.title("Sistema de ventas // Gestión de Productos")
         self.geometry("1300x680")
+        self.after(100, lambda: self.state("zoomed"))  # Abre maximizada según el tamaño de la pantalla
         self.configure(fg_color="#3C3C3C")
         # self.iconbitmap("icono.ico")
 
@@ -213,11 +216,7 @@ class VentanaPrincipal(ctk.CTk):
             pass  # Ya estamos dentro de la ventana de Gestión de Productos
 
     def mostrar_ventas(self):
-            CTkMessagebox(
-                title="Gestión de Ventas",
-                message="El módulo de ventas se encuentra en desarrollo.",
-                icon="info"
-            )
+        VentanaVentas(self)  # Abre la nueva ventana de Gestión de Ventas
 
     def cargar_datos(self):
         for fila in self.tabla.get_children():

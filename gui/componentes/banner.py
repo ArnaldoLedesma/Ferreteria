@@ -58,7 +58,7 @@ class BannerNavegacion(ctk.CTkFrame):
 
         ctk.CTkButton(
             frame_navegacion,
-            text="📦 PORDUCTOS",
+            text="📦 PRODUCTOS",
             command=comando_productos,
             fg_color="#1B5E20",
             hover_color="#144A18",
