@@ -28,7 +28,7 @@ class BannerNavegacion(ctk.CTkFrame):
         self.imagen_fondo = ctk.CTkImage(
             light_image=imagen_original,
             dark_image=imagen_original,
-            size=(1400, 75)  # Adapta la imagen al tamaño actual del banner
+            size=(1450, 75)  # Adapta la imagen al tamaño actual del banner
         )
 
         label_fondo = ctk.CTkLabel(
