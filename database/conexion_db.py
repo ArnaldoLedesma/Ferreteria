@@ -52,37 +52,140 @@ class ConexionDB:
         cursor = connexion.cursor()
         hoy = date.today().strftime("%d/%m/%Y")
 
-        with open(ruta_csv, encoding="latin-1") as archivo:
-            lector = csv.reader(archivo)
-            empezar = False
+        # Contadores que se mostrarán al terminar la actualización
+        resumen = {
+            "actualizados": 0,
+            "nuevos": 0,
+            "ausentes": 0,
+            "errores": 0,
+            "duplicados": 0
+        }
 
-            for fila in lector:
-                if not empezar:
-                    if len(fila) > 0 and fila[0].strip().upper() == "CODIGO":
-                        empezar = True
-                    continue
+        # Guarda los códigos encontrados en el CSV para detectar duplicados
+        codigos_csv = set()
 
-                if len(fila) < 5:
-                    continue
+        try:
+            # Obtiene los códigos que POL ya tiene guardados en la base de datos
+            cursor.execute(
+                """
+                SELECT codigo
+                FROM Productos
+                WHERE proveedor = ?
+                """,
+                ("POL",)
+            )
 
-                codigo = fila[0].strip()
-                nombre = fila[1].strip()
-                precio_lista = fila[2].replace(",", ".").strip()
-                precio_c_iva = fila[4].replace(",", ".").strip()
+            codigos_base = {
+                str(fila[0]).strip()
+                for fila in cursor.fetchall()
+                if fila[0] is not None
+            }
 
-                if not codigo or not precio_c_iva:
-                    continue
+            with open(ruta_csv, encoding="latin-1") as archivo:
+                lector = csv.reader(archivo)
+                empezar = False
 
-                cursor.execute("SELECT id FROM Productos WHERE codigo = ? AND proveedor = ?", (codigo, "POL"))
-                existe = cursor.fetchone()
+                for fila in lector:
+                    # Busca la fila donde comienzan realmente los productos
+                    if not empezar:
+                        if fila and fila[0].strip().upper() == "CODIGO":
+                            empezar = True
+                        continue
 
-                if existe:
-                    cursor.execute("UPDATE Productos SET nombre = ?, precio_lista = ?, precio_c_iva = ?, fecha_act = ? WHERE id = ?", (nombre, precio_lista, precio_c_iva, hoy, existe[0]))
-                else:
-                    cursor.execute("INSERT INTO Productos (codigo, nombre, precio_lista, precio_c_iva, precio_final, stock, proveedor, fecha_act) VALUES (?, ?, ?, ?, 0, 0, ?, ?)", (codigo, nombre, precio_lista, precio_c_iva, "POL", hoy))
+                    # Una fila incompleta se registra como error
+                    if len(fila) < 5:
+                        resumen["errores"] += 1
+                        continue
 
-        connexion.commit()
-        connexion.close()
+                    codigo = fila[0].strip()
+                    nombre = fila[1].strip()
+                    precio_lista = fila[2].replace(",", ".").strip()
+                    precio_c_iva = fila[4].replace(",", ".").strip()
+
+                    # Verifica que existan los datos indispensables
+                    if not codigo or not precio_c_iva:
+                        resumen["errores"] += 1
+                        continue
+
+                    # Si el código ya apareció en este mismo archivo, está duplicado
+                    if codigo in codigos_csv:
+                        resumen["duplicados"] += 1
+                        continue
+
+                    codigos_csv.add(codigo)
+
+                    cursor.execute(
+                        """
+                        SELECT id
+                        FROM Productos
+                        WHERE codigo = ? AND proveedor = ?
+                        """,
+                        (codigo, "POL")
+                    )
+
+                    existe = cursor.fetchone()
+
+                    if existe:
+                        cursor.execute(
+                            """
+                            UPDATE Productos
+                            SET nombre = ?,
+                                precio_lista = ?,
+                                precio_c_iva = ?,
+                                fecha_act = ?
+                            WHERE id = ?
+                            """,
+                            (
+                                nombre,
+                                precio_lista,
+                                precio_c_iva,
+                                hoy,
+                                existe[0]
+                            )
+                        )
+
+                        resumen["actualizados"] += 1
+
+                    else:
+                        cursor.execute(
+                            """
+                            INSERT INTO Productos (
+                                codigo,
+                                nombre,
+                                precio_lista,
+                                precio_c_iva,
+                                precio_final,
+                                stock,
+                                proveedor,
+                                fecha_act
+                            )
+                            VALUES (?, ?, ?, ?, 0, 0, ?, ?)
+                            """,
+                            (
+                                codigo,
+                                nombre,
+                                precio_lista,
+                                precio_c_iva,
+                                "POL",
+                                hoy
+                            )
+                        )
+
+                        resumen["nuevos"] += 1
+
+            # Compara los productos anteriores con los presentes en el CSV nuevo
+            resumen["ausentes"] = len(codigos_base - codigos_csv)
+
+            connexion.commit()
+            return resumen
+
+        except Exception:
+            # Si algo grave falla, evita guardar una actualización incompleta
+            connexion.rollback()
+            raise
+
+        finally:
+            connexion.close()
     def actualizar_precios_fgp(self, ruta_csv):
         connexion = self.conectar()
         cursor = connexion.cursor()

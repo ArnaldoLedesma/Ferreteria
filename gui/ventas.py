@@ -6,21 +6,26 @@ from tkinter import messagebox
 from gui.componentes.dialogos import DialogoConfirmacion, DialogoVentaRegistrada
 
 class VentanaVentas(ctk.CTkToplevel):
-    def __init__(self, master):
+    def __init__(self, master, producto_inicial=None, mostrar=True):
         super().__init__(master)
         self.db = ConexionDB()
         self.db.crear_tablas_ventas()  # Crea las tablas solamente si todavía no existen
 
         self.carrito = {} 
+        self.producto_inicial = producto_inicial  # Recibe el producto elegido desde Gestión de Productos
+        if self.producto_inicial:
+            self.after(500, self.agregar_producto_inicial)  # Espera a que la ventana termine de construirse
         self.title("Sistema de ventas // Gestión de Ventas")
         self.geometry("1300x680")
-        self.after(100, lambda: self.state("zoomed"))  # Abre Ventas maximizada según la pantalla
         self.configure(fg_color="#3C3C3C")
 
-        # Coloca Ventas adelante al abrirse, pero permite usar las demás ventanas
-        self.attributes("-topmost", True)
-        self.after(300, self.dejar_ventana_normal)
-        self.focus_force()
+        if mostrar:
+            self.after(100, lambda: self.state("zoomed"))
+            self.attributes("-topmost", True)
+            self.after(300, self.dejar_ventana_normal)
+            self.focus_force()
+        else:
+            self.withdraw()  # Mantiene Ventas oculta mientras se completa el carrito
 
         # Contenedor principal: productos a la izquierda y carrito a la derecha
         self.contenedor = ctk.CTkFrame(
@@ -278,7 +283,42 @@ class VentanaVentas(ctk.CTkToplevel):
     def dejar_ventana_normal(self):
                 self.attributes("-topmost", False)  # Evita que quede siempre encima de otros programas
                 self.lift()
-                self.focus_force()   
+                self.focus_force()  
+
+    def recibir_producto(self, producto):
+        self.producto_inicial = producto
+        self.agregar_producto_inicial()  # Agrega el nuevo artículo al carrito existente
+        self.lift()
+        self.focus_force()            
+
+    def agregar_producto_inicial(self):
+        producto = self.producto_inicial
+        id_producto = str(producto["id"])
+
+        # Busca el producto recibido desde Gestión de Productos
+        self.entry_buscar.delete(0, "end")
+        self.entry_buscar.insert(0, producto["codigo"])
+        self.buscar_productos()
+
+        if not self.tabla_productos.exists(id_producto):
+            CTkMessagebox(
+                title="Producto no disponible",
+                message="El producto no tiene stock disponible para la venta.",
+                icon="warning"
+            )
+            return
+
+        self.tabla_productos.selection_set(id_producto)
+        self.tabla_productos.focus(id_producto)
+        self.tabla_productos.see(id_producto)
+
+        self.entry_cantidad.delete(0, "end")
+        self.entry_cantidad.insert(
+            0,
+            str(producto.get("cantidad", 1))
+        )
+
+        self.agregar_al_carrito()  # Reutiliza la función existente del carrito             
 
     def buscar_productos(self, event=None):
         texto = self.entry_buscar.get().strip()

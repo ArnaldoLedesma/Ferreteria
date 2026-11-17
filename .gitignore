@@ -2,3 +2,8 @@
 *.sqbpro
 __pycache__/
 *.pyc
+# Datos privados del negocio
+*.csv
+*.xlsx
+tickets/
+.env

@@ -8,11 +8,14 @@ from tkinter import ttk, filedialog
 from CTkMessagebox import CTkMessagebox  # libreria instalada por posibles errores al ejecutar (para mostrar los cuadros "ERROR" "ATENCION")
 from database.conexion_db import ConexionDB
 from gui.componentes.banner import BannerNavegacion  # Importa el banner creado en otro archivo
-
+from tkinter import messagebox
+from gui.componentes.cambiar_clave import DialogoCambiarClave
 
 class VentanaPrincipal(ctk.CTk):
-    def __init__(self):
+    def __init__(self, usuario):
         super().__init__()
+
+        self.usuario_actual = usuario  # Guarda el usuario que inició sesión
 
         self.db = ConexionDB()
 
@@ -30,6 +33,31 @@ class VentanaPrincipal(ctk.CTk):
             
         )
 
+       # ---- Espacio del usuario debajo del banner ----
+        self.barra_usuario = ctk.CTkFrame(
+            self,
+            height=40,
+            fg_color="#3C3C3C",
+            corner_radius=0
+        )
+        self.barra_usuario.pack(fill="x")
+        self.barra_usuario.pack_propagate(False)  # Mantiene fija la altura de la barra
+
+        self.boton_usuario = ctk.CTkButton(
+            self.barra_usuario,
+            text=f"👤  {self.usuario_actual}   ⚙",
+            command=self.abrir_cambio_clave,
+            width=190,
+            height=30,
+            corner_radius=10,
+            fg_color="#145C45",
+            hover_color="#2E8B57",
+            border_width=1,
+            border_color="#4CA584",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            text_color="#FFFFFF"
+        )
+        self.boton_usuario.pack(pady=5)
        
 
         # ---- Contenedor general del formulario (debajo del banner) ----
@@ -199,13 +227,49 @@ class VentanaPrincipal(ctk.CTk):
 
         self.tabla.pack(side="left", fill="both", expand=True)
         barra_vertical.pack(side="right", fill="y")
+        # Fila para el acceso rápido a ventas y el total de productos
+        frame_acceso_venta = ctk.CTkFrame(self, fg_color="transparent")
+        frame_acceso_venta.pack(
+            fill="x",
+            padx=20,
+            pady=(8, 0),
+            before=frame_tabla
+        )
+
+        ctk.CTkLabel(
+            frame_acceso_venta,
+            text="CANTIDAD:",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            text_color="white"
+        ).pack(side="left", padx=(0, 6))
+
+        self.entry_cantidad_venta = ctk.CTkEntry(
+            frame_acceso_venta,
+            width=60,
+            justify="center",
+            font=ctk.CTkFont(size=14)
+        )
+        self.entry_cantidad_venta.pack(side="left", padx=(0, 10))
+        self.entry_cantidad_venta.insert(0, "1")  # Cantidad inicial para la venta
+
+        self.boton_vender = ctk.CTkButton(
+            frame_acceso_venta,
+            text="🛒 AGREGAR AL CARRITO",
+            command=self.vender_seleccionado,
+            fg_color="#2E7D32",
+            hover_color="#1B5E20",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            width=210
+        )
+        self.boton_vender.pack(side="left")
+
         self.label_total_productos = ctk.CTkLabel(
-            self,
+            frame_acceso_venta,
             text="TOTAL DE PRODUCTOS: 0",
             font=ctk.CTkFont(size=14, weight="bold"),
             text_color="#8BC34A"
         )
-        self.label_total_productos.pack(anchor="e", padx=25, pady=(8, 0), before=frame_tabla)  # Coloca el contador antes de la tabla
+        self.label_total_productos.pack(side="right", padx=5)
         self.tabla.bind("<<TreeviewSelect>>", self.seleccionar_fila)  # <<>> eventos puntuales específicos, ej: seleccionar una fila X
 
         self.id_seleccionado = None  # con None, aún no se seleccionó ningún producto o fila
@@ -216,7 +280,13 @@ class VentanaPrincipal(ctk.CTk):
             pass  # Ya estamos dentro de la ventana de Gestión de Productos
 
     def mostrar_ventas(self):
-        VentanaVentas(self)  # Abre la nueva ventana de Gestión de Ventas
+        if hasattr(self, "ventana_ventas") and self.ventana_ventas.winfo_exists():
+            self.ventana_ventas.deiconify()  # Muestra el carrito que estaba oculto
+            self.ventana_ventas.state("zoomed")
+            self.ventana_ventas.lift()
+            self.ventana_ventas.focus_force()
+        else:
+            self.ventana_ventas = VentanaVentas(self)
 
     def cargar_datos(self):
         for fila in self.tabla.get_children():
@@ -290,6 +360,7 @@ class VentanaPrincipal(ctk.CTk):
 
     def seleccionar_fila(self, event):
         seleccion = self.tabla.selection()
+
         if seleccion:
             valores = self.tabla.item(seleccion[0], "values")
             self.id_seleccionado = valores[0]
@@ -313,6 +384,63 @@ class VentanaPrincipal(ctk.CTk):
 
             self.entry_proveedor.delete(0, "end")
             self.entry_proveedor.insert(0, valores[7])
+    def vender_seleccionado(self):
+            seleccion = self.tabla.selection()
+
+            if not seleccion:
+                messagebox.showwarning(
+                    "Producto no seleccionado",
+                    "Seleccione un producto de la tabla.",
+                    parent=self
+                )
+                return
+
+            valores = self.tabla.item(seleccion[0], "values")
+
+            try:
+                cantidad = int(self.entry_cantidad_venta.get())
+
+                if cantidad <= 0:
+                    raise ValueError
+
+            except ValueError:
+                messagebox.showwarning(
+                    "Cantidad incorrecta",
+                    "Ingrese una cantidad mayor que cero.",
+                    parent=self
+                )
+                return
+
+            stock = int(valores[6])
+
+            if cantidad > stock:
+                messagebox.showwarning(
+                    "Stock insuficiente",
+                    f"Stock disponible: {stock}",
+                    parent=self
+                )
+                return
+
+            producto = {
+                "id": valores[0],
+                "codigo": valores[1],
+                "nombre": valores[2],
+                "precio_final": valores[5],
+                "stock": valores[6],
+                "cantidad": cantidad
+            }
+
+            if hasattr(self, "ventana_ventas") and self.ventana_ventas.winfo_exists():
+                self.ventana_ventas.recibir_producto(producto)
+            else:
+                self.ventana_ventas = VentanaVentas(
+                self,
+                producto_inicial=producto,
+                mostrar=False
+)
+
+            self.entry_cantidad_venta.delete(0, "end")
+            self.entry_cantidad_venta.insert(0, "1")  # Restablece la cantidad
 
     def modificar(self):
         if not self.id_seleccionado:
@@ -417,3 +545,9 @@ class VentanaPrincipal(ctk.CTk):
             CTkMessagebox(title="Actualizado", message=f"Margen aplicado a todos los productos de {proveedor}.", icon="check")
         except ValueError:
             CTkMessagebox(title="Error", message="El margen debe ser numérico.", icon="cancel")
+
+    def abrir_cambio_clave(self):
+        DialogoCambiarClave(
+            self,
+            self.usuario_actual
+        )
