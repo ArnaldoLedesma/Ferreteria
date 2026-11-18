@@ -139,6 +139,7 @@ class VentanaLogin(ctk.CTk):
             width=320,
             height=48,
             placeholder_text="Usuario",
+            text_color="#FFFFFF",  # Color del texto que escribís
             font=ctk.CTkFont(size=15),
             fg_color="#163A35",
             border_color="#2C8B78",
@@ -152,6 +153,7 @@ class VentanaLogin(ctk.CTk):
             width=320,
             height=48,
             placeholder_text="Contraseña",
+            text_color="#FFFFFF",  # Color del texto que escribís
             show="●",
             font=ctk.CTkFont(size=15),
             fg_color="#163A35",
@@ -179,6 +181,7 @@ class VentanaLogin(ctk.CTk):
         self.check_mostrar = ctk.CTkCheckBox(
             self.panel_login,
             text="Mostrar contraseña",
+            text_color="#FFFFFF",  # Color del texto al lado de la casilla
             command=self.mostrar_contrasena,
             font=ctk.CTkFont(size=13),
             fg_color="#2E8B72",

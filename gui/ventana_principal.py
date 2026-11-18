@@ -496,55 +496,157 @@ class VentanaPrincipal(ctk.CTk):
             title="Seleccioná el CSV de POL",
             filetypes=[("Archivos CSV", "*.csv")]
         )
-        if ruta:
-            self.db.actualizar_precios_pol(ruta)
-            self.cargar_datos()
-            CTkMessagebox(title="Actualizado", message="Precios de POL actualizados correctamente.", icon="check")
+        if not ruta:
+            return  # Si cancelás, no se importa nada
+
+        resumen = self.db.actualizar_precios_pol(ruta)
+        self.cargar_datos()
+
+        CTkMessagebox(
+            title="Resumen de actualización — POL",
+            width=480,
+            height=320,
+                message=(
+                f"Productos actualizados: {resumen['actualizados']}\n\n"
+                f"Productos nuevos: {resumen['nuevos']}\n\n"
+                f"No figuran en este CSV: {resumen['ausentes']}\n\n"
+                f"Filas con errores: {resumen['errores']}\n\n"
+                f"Duplicados omitidos: {resumen['duplicados']}\n\n"
+                "Los productos que no figuran siguen en el sistema sin cambios."
+            ),
+            icon="check"
+        )
 
     def actualizar_fgp(self):
-        ruta = filedialog.askopenfilename(
-            title="Seleccioná el CSV de FGP",
-            filetypes=[("Archivos CSV", "*.csv")]
-        )
-        if ruta:
-            self.db.actualizar_precios_fgp(ruta)
+            ruta = filedialog.askopenfilename(
+                title="Seleccioná el CSV de FGP",
+                filetypes=[("Archivos CSV", "*.csv")]
+            )
+            if not ruta:
+                return
+
+            try:
+                resumen = self.db.actualizar_precios_fgp(ruta)
+            except (OSError, ValueError) as error:
+                CTkMessagebox(
+                    title="No se pudo actualizar FGP",
+                    message=str(error),
+                    icon="cancel"
+                )
+                return
+
             self.cargar_datos()
-            CTkMessagebox(title="Actualizado", message="Precios de FGP actualizados correctamente.", icon="check")
+
+            CTkMessagebox(
+                title="Resumen de actualización — FGP",
+                width=480,
+                height=380,
+                message=(
+                    f"Productos actualizados: {resumen['actualizados']}\n\n"
+                    f"Productos nuevos: {resumen['nuevos']}\n\n"
+                    f"No figuran en este CSV: {resumen['ausentes']}\n\n"
+                    f"Filas con errores: {resumen['errores']}\n\n"
+                    f"Duplicados omitidos: {resumen['duplicados']}\n\n"
+                    "Los productos que no figuran siguen en el sistema sin cambios."
+                ),
+                icon="check"
+            )
 
     def actualizar_day(self):
         ruta = filedialog.askopenfilename(
             title="Seleccioná el CSV de DAY",
             filetypes=[("Archivos CSV", "*.csv")]
         )
-        if ruta:
-            self.db.actualizar_precios_day(ruta)
-            self.cargar_datos()
-            CTkMessagebox(title="Actualizado", message="Precios de DAY actualizados correctamente.", icon="check")
+        if not ruta:
+            return
+
+        try:
+            resumen = self.db.actualizar_precios_day(ruta)
+        except (OSError, ValueError) as error:
+            CTkMessagebox(
+                title="No se pudo actualizar DAY",
+                message=str(error),
+                icon="cancel"
+            )
+            return
+
+        self.cargar_datos()
+
+        CTkMessagebox(
+            title="Resumen de actualización — DAY",
+            width=480,
+            height=380,
+            message=(
+                f"Productos actualizados: {resumen['actualizados']}\n\n"
+                f"Productos nuevos: {resumen['nuevos']}\n\n"
+                f"No figuran en este CSV: {resumen['ausentes']}\n\n"
+                f"Filas con errores: {resumen['errores']}\n\n"
+                f"Duplicados omitidos: {resumen['duplicados']}\n\n"
+                "Los productos que no figuran siguen en el sistema sin cambios."
+            ),
+            icon="check"
+        )
 
     def actualizar_grays(self):
         ruta = filedialog.askopenfilename(
             title="Seleccioná el CSV de GRAYS",
             filetypes=[("Archivos CSV", "*.csv")]
         )
-        if ruta:
-            self.db.actualizar_precios_grays(ruta)
-            self.cargar_datos()
-            CTkMessagebox(title="Actualizado", message="Precios de GRAYS actualizados correctamente.", icon="check")
-
-    def aplicar_margen(self):
-        proveedor = self.entry_proveedor_margen.get()
-        margen = self.entry_margen.get()
-
-        if not proveedor or not margen:
-            CTkMessagebox(title="Atención", message="Completá proveedor y margen.", icon="warning")
+        if not ruta:
             return
 
         try:
-            self.db.aplicar_margen(proveedor, float(margen))
-            self.cargar_datos()
-            CTkMessagebox(title="Actualizado", message=f"Margen aplicado a todos los productos de {proveedor}.", icon="check")
-        except ValueError:
-            CTkMessagebox(title="Error", message="El margen debe ser numérico.", icon="cancel")
+            resumen = self.db.actualizar_precios_grays(ruta)
+        except (OSError, ValueError) as error:
+            CTkMessagebox(
+                title="No se pudo actualizar GRAYS",
+                message=str(error),
+                icon="cancel"
+            )
+            return
+
+        self.cargar_datos()
+
+        CTkMessagebox(
+            title="Resumen de actualización — GRAYS",
+            width=480,
+            height=380,
+            message=(
+                f"Productos actualizados: {resumen['actualizados']}\n\n"
+                f"Productos nuevos: {resumen['nuevos']}\n\n"
+                f"No figuran en este CSV: {resumen['ausentes']}\n\n"
+                f"Filas con errores: {resumen['errores']}\n\n"
+                f"Duplicados omitidos: {resumen['duplicados']}\n\n"
+                "Los productos que no figuran siguen en el sistema sin cambios."
+            ),
+            icon="check"
+        )
+
+    def aplicar_margen(self):
+        proveedor = self.entry_proveedor_margen.get().strip().upper()
+        margen = self.entry_margen.get().strip()
+
+        if not proveedor or not margen:
+            CTkMessagebox(
+                title="Atención",
+                message="Completá proveedor y margen.",
+                icon="warning",
+            )
+            return
+
+        try:
+            # La base interpreta el porcentaje; no usamos float() acá.
+            self.db.aplicar_margen(proveedor, margen)
+        except ValueError as error:
+            CTkMessagebox(title="Error", message=str(error), icon="cancel")
+            return
+
+        self.cargar_datos()
+        CTkMessagebox(
+            title="Actualizado",
+            message=f"Margen aplicado a los productos de {proveedor}.",
+            icon="check",
+        )
 
     def abrir_cambio_clave(self):
         DialogoCambiarClave(
