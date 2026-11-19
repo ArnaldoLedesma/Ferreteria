@@ -603,3 +603,32 @@ class ConexionDB:
 
         finally:
             conexion.close()
+
+    def obtener_resumen_ventas_hoy(self):
+        # Usa el mismo formato de fecha que registrar_venta.
+        hoy = datetime.now().strftime("%d/%m/%Y")
+        conexion = self.conectar()
+
+        try:
+            filas = conexion.execute(
+                """
+                SELECT medio_pago, COUNT(*), COALESCE(SUM(total), 0)
+                FROM Ventas
+                WHERE fecha LIKE ?
+                GROUP BY medio_pago
+                ORDER BY medio_pago
+                """,
+                (f"{hoy} %",),
+            ).fetchall()
+
+            return {
+                "fecha": hoy,
+                "cantidad_ventas": sum(cantidad for _, cantidad, _ in filas),
+                "total_general": sum(total for _, _, total in filas),
+                "por_medio": [
+                    {"medio": medio, "cantidad": cantidad, "total": total}
+                    for medio, cantidad, total in filas
+                ],
+            }
+        finally:
+            conexion.close()

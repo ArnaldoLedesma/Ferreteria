@@ -10,6 +10,7 @@ from database.conexion_db import ConexionDB
 from gui.componentes.banner import BannerNavegacion  # Importa el banner creado en otro archivo
 from tkinter import messagebox
 from gui.componentes.cambiar_clave import DialogoCambiarClave
+from gui.cierre_caja import VentanaCierreCaja
 
 class VentanaPrincipal(ctk.CTk):
     def __init__(self, usuario):
@@ -26,28 +27,31 @@ class VentanaPrincipal(ctk.CTk):
         # self.iconbitmap("icono.ico")
 
          # Banner reutilizable con navegación entre Productos y Ventas
-        self.banner = BannerNavegacion(
-            self,
-            comando_productos=self.mostrar_productos,
-            comando_ventas=self.mostrar_ventas,
-            
-        )
+        self.banner = BannerNavegacion(self)
 
-       # ---- Espacio del usuario debajo del banner ----
-        self.barra_usuario = ctk.CTkFrame(
-            self,
-            height=40,
-            fg_color="#3C3C3C",
-            corner_radius=0
-        )
-        self.barra_usuario.pack(fill="x")
-        self.barra_usuario.pack_propagate(False)  # Mantiene fija la altura de la barra
+        # Fila de accesos debajo del banner, fuera de la imagen.
+        frame_accesos = ctk.CTkFrame(self, fg_color="transparent")
+        frame_accesos.pack(fill="x", side="top", padx=12, pady=(6, 4))
 
+        ctk.CTkButton(
+            frame_accesos,
+            text="F1 🛒VENTAS",
+            command=self.mostrar_ventas,
+            fg_color="#1B5E20",
+            hover_color="#144A18",
+            width=150,
+            font=ctk.CTkFont(size=15, weight="bold"),
+        ).pack(side="left")
+
+                # F1 abre Ventas desde la ventana principal.
+        self.bind("<F1>", lambda evento: self.mostrar_ventas())
+
+               # Usuario y configuración a la derecha, en la misma fila que F1 Ventas.
         self.boton_usuario = ctk.CTkButton(
-            self.barra_usuario,
+            frame_accesos,
             text=f"👤  {self.usuario_actual}   ⚙",
             command=self.abrir_cambio_clave,
-            width=190,
+            width=160,
             height=30,
             corner_radius=10,
             fg_color="#145C45",
@@ -55,9 +59,21 @@ class VentanaPrincipal(ctk.CTk):
             border_width=1,
             border_color="#4CA584",
             font=ctk.CTkFont(size=13, weight="bold"),
-            text_color="#FFFFFF"
+            text_color="#FFFFFF",
         )
-        self.boton_usuario.pack(pady=5)
+        self.boton_usuario.pack(side="right")
+
+        ctk.CTkButton(
+            frame_accesos,
+            text="F2 · CIERRE DE CAJA",
+            command=self.mostrar_cierre_caja,
+            fg_color="#1B5E20",
+            hover_color="#144A18",
+            width=165,
+            font=ctk.CTkFont(size=15, weight="bold"),
+        ).pack(side="left", padx=(8, 0))
+
+        self.bind("<F2>", lambda evento: self.mostrar_cierre_caja())
        
 
         # ---- Contenedor general del formulario (debajo del banner) ----
@@ -125,10 +141,34 @@ class VentanaPrincipal(ctk.CTk):
 
         boton_importar_kwargs = dict(fg_color="#2E7D32", hover_color="#1B5E20", width=140, font=ctk.CTkFont(size=15))
 
-        ctk.CTkButton(frame_importar, text="Actualizar POL", command=self.actualizar_pol, **boton_importar_kwargs).grid(row=1, column=0, padx=10, pady=5)
-        ctk.CTkButton(frame_importar, text="Actualizar FGP", command=self.actualizar_fgp, **boton_importar_kwargs).grid(row=1, column=1, padx=10, pady=5)
-        ctk.CTkButton(frame_importar, text="Actualizar DAY", command=self.actualizar_day, **boton_importar_kwargs).grid(row=2, column=0, padx=10, pady=5)
-        ctk.CTkButton(frame_importar, text="Actualizar GRAYS", command=self.actualizar_grays, **boton_importar_kwargs).grid(row=2, column=1, padx=10, pady=(5, 12))
+                # Proveedor → método que sabe leer su CSV.
+        self.importadores_csv = {
+            "POL": self.actualizar_pol,
+            "FGP": self.actualizar_fgp,
+            "DAY": self.actualizar_day,
+            "GRAYS": self.actualizar_grays,
+        }
+
+        self.selector_proveedor_csv = ctk.CTkOptionMenu(
+            frame_importar,
+            values=list(self.importadores_csv),
+            fg_color="#414141",
+            button_color="#343434",
+            button_hover_color="#555555",
+        )
+
+        self.selector_proveedor_csv.set("Seleccioná un proveedor")
+        self.selector_proveedor_csv.grid(
+            row=1, column=0, columnspan=2, sticky="ew", padx=10, pady=5
+        )
+        ctk.CTkButton(
+            frame_importar,
+            text="Importar CSV",
+            command=self.importar_csv_seleccionado,
+            **boton_importar_kwargs,
+        ).grid(
+            row=2, column=0, columnspan=2, sticky="ew", padx=10, pady=(5, 12)
+        )
 
         # Buscador propio del módulo Gestión de Productos
         self.entry_buscar = ctk.CTkEntry(
@@ -287,6 +327,18 @@ class VentanaPrincipal(ctk.CTk):
             self.ventana_ventas.focus_force()
         else:
             self.ventana_ventas = VentanaVentas(self)
+
+    def mostrar_cierre_caja(self):
+        # Si ya está abierta, traemos esa ventana al frente.
+        ventana = getattr(self, "_ventana_cierre_caja", None)
+
+        if ventana is not None and ventana.winfo_exists():
+            ventana.deiconify()
+            ventana.lift()
+            ventana.focus_set()
+            return
+
+        self._ventana_cierre_caja = VentanaCierreCaja(self, self.db)
 
     def cargar_datos(self):
         for fila in self.tabla.get_children():
@@ -490,6 +542,21 @@ class VentanaPrincipal(ctk.CTk):
         self.entry_stock.delete(0, "end")
         self.entry_proveedor.delete(0, "end")
         self.id_seleccionado = None
+
+    def importar_csv_seleccionado(self):
+        proveedor = self.selector_proveedor_csv.get()
+        importar = self.importadores_csv.get(proveedor)
+
+        if importar is None:
+            CTkMessagebox(
+                title="Atención",
+                message="Seleccioná un proveedor antes de importar.",
+                icon="warning",
+            )
+            return
+
+        # Reutiliza el selector de archivo y el resumen de ese proveedor.
+        importar()
 
     def actualizar_pol(self):
         ruta = filedialog.askopenfilename(

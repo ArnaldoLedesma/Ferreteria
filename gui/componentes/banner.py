@@ -5,11 +5,11 @@ import customtkinter as ctk
 
 
 class BannerNavegacion(ctk.CTkFrame):
-    def __init__(self, master, comando_productos, comando_ventas):
+    def __init__(self, master):
         super().__init__(
             master,
             fg_color="#2E7D32",
-            height=75,
+            height=95,
             corner_radius=0
         )
 
@@ -28,7 +28,7 @@ class BannerNavegacion(ctk.CTkFrame):
         self.imagen_fondo = ctk.CTkImage(
             light_image=imagen_original,
             dark_image=imagen_original,
-            size=(1450, 75)  # Adapta la imagen al tamaño actual del banner
+            size=(1450, 95)  # Adapta la imagen al tamaño actual del banner
         )
 
         label_fondo = ctk.CTkLabel(
@@ -36,7 +36,7 @@ class BannerNavegacion(ctk.CTkFrame):
             image=self.imagen_fondo,
             text="",
             width=1400,
-            height=75,
+            height=95,
             corner_radius=0
         )
 
@@ -44,36 +44,3 @@ class BannerNavegacion(ctk.CTkFrame):
             x=-5,
             y=0
         )  # Desplaza levemente la imagen para cubrir el margen izquierdo
-    
-        # ---------- NAVEGACIÓN ENTRE MÓDULOS ----------
-
-        frame_navegacion = ctk.CTkFrame(self, fg_color="transparent")
-        frame_navegacion.place(
-        relx=0.5,
-        rely=0.80,
-        anchor="center"
-    )  # Centra la navegación respecto de todo el banner
-    
-          # Centra la navegación respecto de todo el banner
-
-        ctk.CTkButton(
-            frame_navegacion,
-            text="📦 PRODUCTOS",
-            command=comando_productos,
-            fg_color="#1B5E20",
-            hover_color="#144A18",
-            width=150,
-            font=ctk.CTkFont(size=15, weight="bold")  # Tamaño de la letra del botón
-        ).pack(side="left", padx=6)
-
-        ctk.CTkButton(
-            frame_navegacion,
-            text="🛒 VENTAS",
-            command=comando_ventas,
-            fg_color="#45B34B",
-            hover_color="#1B5E20",
-            width=150,
-            font=ctk.CTkFont(size=15, weight="bold")  # Tamaño de la letra del botón
-        ).pack(side="left", padx=6)
-
-       
